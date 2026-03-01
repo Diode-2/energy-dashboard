@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cyber-Tesla HUD</title>
+    <style>
+        body { 
+            background: #000; 
+            color: #00ffcc; 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            height: 100vh; 
+            overflow: hidden;
+            
+            /* --- BACKGROUND GIF SETTINGS --- */
+            background-image: url('https://miro.medium.com/v2/resize:fit:720/format:webp/0*JaqVrbqTw3cRHrLE.gif'); 
+            background-size: cover; 
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            padding: 60px 5% 0 5%;
+        }
+
+        /* Overlay to make text more readable over the GIF */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.3); /* Dims the GIF slightly */
+            z-index: -1;
+        }
+
+        /* Left Side: Energy Back */
+        .export-side { 
+            text-align: left; 
+            opacity: 0; 
+            transition: 0.5s; 
+            border-left: 3px solid #00ff88; 
+            padding-left: 15px; 
+            z-index: 1;
+        }
+        .active { opacity: 1; }
+        .exp-label { font-size: 14px; letter-spacing: 4px; color: #00ff88; margin-bottom: 5px; font-weight: bold; }
+        .exp-val { font-size: 100px; font-weight: bold; color: #00ff88; margin: 0; text-shadow: 0 0 20px #00ff88; }
+
+        /* Right Side: HUD */
+        .hud { 
+            text-align: right; 
+            border-right: 3px solid #00ffcc; 
+            padding-right: 15px; 
+            z-index: 1;
+        }
+        .label { font-size: 14px; letter-spacing: 4px; opacity: 0.7; }
+        .main-num { font-size: 100px; font-weight: bold; margin: 0; text-shadow: 0 0 20px #00ffcc; }
+        .today { color: #ff9900; font-size: 24px; margin: 15px 0 30px 0; text-shadow: 0 0 10px #ff9900; }
+        
+        .row { display: flex; justify-content: flex-end; align-items: center; margin: 12px 0; font-size: 18px; }
+        .r-lab { color: #a0a0a0; margin-right: 25px; text-transform: uppercase; font-size: 14px; }
+        .r-day { color: #ff9900; width: 80px; font-size: 14px; margin-right: 10px; }
+        .r-val { width: 100px; font-weight: bold; color: #fff; }
+        
+        /* Solar Array - Neon Green */
+        .solar-txt { color: #00ff88 !important; text-shadow: 0 0 10px #00ff88; }
+        .vlt { font-size: 12px; margin-top: 40px; opacity: 0.5; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="side-l" class="export-side">
+        <div class="exp-label">ENERGY BACK</div>
+        <div class="exp-val" id="back-val">0.00</div>
+        <div style="color:#00ff88; font-size:12px; letter-spacing:2px;">GRID RECOVERY</div>
+    </div>
+
+    <div class="hud">
+        <div class="label">LIVE SYSTEM LOAD</div>
+        <div class="main-num" id="main-val">0.00<span style="font-size:30px">kW</span></div>
+        <div class="today">TODAY: <span id="k-val">0.00</span>kWh</div>
+
+        <div class="row"><div class="r-lab">WATER HEATER</div><div class="r-day"><span id="dg1">0.0</span>kWh</div><div class="r-val"><span id="g1">0.0</span>kW</div></div>
+        <div class="row"><div class="r-lab">STOVE</div><div class="r-day"><span id="dg2">0.0</span>kWh</div><div class="r-val"><span id="g2">0.0</span>kW</div></div>
+        <div class="row solar-txt"><div class="r-lab solar-txt">SOLAR ARRAY</div><div class="r-day"><span id="dg3">0.0</span>kWh</div><div class="r-val"><span id="g3">0.0</span>kW</div></div>
+        <div class="row"><div class="r-lab">DRYER</div><div class="r-day"><span id="dg4">0.0</span>kWh</div><div class="r-val"><span id="g4">0.0</span>kW</div></div>
+        <div class="row"><div class="r-lab">EV TERMINAL</div><div class="r-day"><span id="dg5">0.0</span>kWh</div><div class="r-val"><span id="g5">0.0</span>kW</div></div>
+
+        <div class="vlt">LINE VOLTAGE: <span id="v">0</span>V</div>
+    </div>
+
+    <script>
+        // Update this to your Public IP when you're ready
+        const socket = new WebSocket('ws://192.168.0.8:81/'); 
+        
+        socket.onmessage = function(e) {
+            const d = JSON.parse(e.data);
+            
+            // Big Load Number
+            document.getElementById('main-val').innerHTML = d.m.toFixed(2) + '<span style="font-size:30px">kW</span>';
+            document.getElementById('k-val').innerText = d.k.toFixed(2);
+            document.getElementById('v').innerText = d.v.toFixed(1);
+
+            // Sub-measurements & Daily Totals
+            const ids = ['g1','g2','g3','g4','g5','dg1','dg2','dg3','dg4','dg5'];
+            ids.forEach(id => {
+                if(document.getElementById(id)) {
+                    document.getElementById(id).innerText = d[id].toFixed(2);
+                }
+            });
+
+            // Energy Back Logic (Left Side)
+            const side = document.getElementById('side-l');
+            if (d.n < 0) {
+                side.classList.add('active');
+                document.getElementById('back-val').innerText = Math.abs(d.n).toFixed(2);
+            } else { 
+                side.classList.remove('active'); 
+            }
+        };
+    </script>
+</body>
+</html>
